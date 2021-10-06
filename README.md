@@ -43,12 +43,12 @@ $ docker-compose up
 ### Step 2 - Setting Up Nginx Port Forwarding
 You have already set up the ```/etc/nginx/sites-available/registry.xxxxxx.com``` file, containing your server configuration. Open it for editing by running:
 ```bash
-$ sudo nano /etc/nginx/sites-available/your_domain
+$ sudo nano /etc/nginx/sites-available/registry.xxxxxx.com
 ```
 add the following content to this file and save it :
 ```conf
 server {
-    server_name  registry-stg.plnm.ir;
+    server_name  registry.xxxxxx.com; #replace it with youe domain
     access_log  off;
     client_max_body_size 2000M;
     location / {
@@ -63,23 +63,57 @@ server {
     }
 
 
-    listen 443 ssl; # managed by Certbot
-    ssl_certificate /etc/letsencrypt/live/registry-stg.plnm.ir/fullchain.pem; # managed by Certbot
-    ssl_certificate_key /etc/letsencrypt/live/registry-stg.plnm.ir/privkey.pem; # managed by Certbot
+    listen 443 ssl; # managed by Certbot (You can use Certbot to generage ssl sign files)
+    ssl_certificate /etc/letsencrypt/live/registry.xxxxxx.com/fullchain.pem; # managed by Certbot
+    ssl_certificate_key /etc/letsencrypt/live/registry.xxxxxx.com/privkey.pem; # managed by Certbot
     include /etc/letsencrypt/options-ssl-nginx.conf; # managed by Certbot
     ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem; # managed by Certbot
 
 }
 server {
-    if ($host = registry-stg.plnm.ir) {
+    if ($host = registry.xxxxxx.com) {
         return 301 https://$host$request_uri;
     } # managed by Certbot
 
 
-    server_name  registry-stg.plnm.ir;
+    server_name  registry.xxxxxx.com;
     listen 80;
     return 404; # managed by Certbot
 
 
 }
 ```
+now run folloing command to ```ln``` config file inside ```sites-enabled``` directory.
+```bash
+$ sudo ln -s /etc/nginx/sites-available/registry.xxxxxx.com /etc/nginx/sites-enabled/
+```
+to restart nginx service run : 
+```bash
+$ sudo systemctl restart nginx
+```
+and again run : 
+```bash
+$ docker-compose up
+```
+Then, in a browser window, navigate to your domain and access the v2 endpoint, like so:
+```https://registry.xxxxxx.com/v2```
+### Step 3 — Setting Up Authentication
+Nginx allows you to set up HTTP authentication for the sites it manages, which you can use to limit access to your Docker Registry. To achieve this, you’ll create an authentication file with ```htpasswd``` and add username and password combinations to it that will be accepted.
+
+You can obtain the ```htpasswd``` utility by installing the ```apache2-utils``` package. Do so by running:
+```bash
+$ sudo apt install apache2-utils -y
+```
+You’ll store the authentication file with credentials under ```~/docker-registry/auth```. Create it by running:
+```bash
+$ mkdir ~/docker-registry/auth
+```
+Navigate to it:
+```bash
+$ cd ~/docker-registry/auth
+```
+Create the first user, replacing username with the ```username``` you want to use. The -B flag orders the use of the ```bcrypt```algorithm, which Docker requires:
+```bash
+$ htpasswd -Bc registry.password username
+```
+Enter the password when prompted, and the combination of credentials will be appended to ```registry.password```.
